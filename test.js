@@ -1,116 +1,114 @@
-/* eslint-disable max-len */
-import { InboxOutlined } from "@ant-design/icons";
-import { Modal, Upload, message } from "antd";
-import Papa from "papaparse";
-import { useContext, useState } from "react";
-import { TaskContext } from "../../../../context/TaskContext";
+import { CloudUploadOutlined, PlusCircleOutlined } from '@ant-design/icons';
+import { Breadcrumb, Button, Layout, Row, Typography, Input } from 'antd';
+import TaskTable from './components/TaskTable';
+import { TaskContext } from '../../../context/TaskContext';
+import { useCallback, useContext, useEffect, useState } from 'react';
 
-interface popupProps {
-  open: boolean;
-  openPopup: (setter: boolean) => void;
+import ImportTaskPopUp from './components/ImportTaskPopUp';
+import { ITask } from '../../utils/types';
+import Footer from '../Others/Footer';
+
+
+const { Title } = Typography;
+const { Search } = Input;
+
+type JobsProps = {
+    onBreadClick: () => void,
+    onAddTaskClick: () => void,
+    onTaskEditClick: () => void
 }
-interface CsvData {
-  [key: string]: string;
-}
+const Task = (props: JobsProps) => {
 
-const ImportTaskPopUp = (props: popupProps) => {
-  const [csvData, setCsvData] = useState<CsvData[]>([]);
-  const { open, openPopup } = props;
-  const { addTask } = useContext(TaskContext);
+    const { onBreadClick, onAddTaskClick, onTaskEditClick } = props;
+    const { setOneTask, tasks } = useContext(TaskContext);
 
-  console.log(csvData);
+    const handleAddTask = () => {
+        setOneTask(null);
+        onAddTaskClick();
+    };
 
-  const uploadProps = {
-    accept: ".csv",
-    name: "file",
-    multiple: false,
-    beforeUpload: (file: File) => {
-      handleFileUpload(file);
-      return false; // Prevent default upload behavior
-    },
-  };
+    const [modalOpen, setModalOpen] = useState(false);
 
-  const handleFileUpload = (file: File) => {
-    setCsvData([]);
-    Papa.parse(file, {
-      header: true,
-      complete: (result: any) => {
-        setCsvData(result.data);
-      },
-      error: (error: any) => {
-        console.error("Error parsing CSV file:", error);
-        message.error("Failed to parse CSV file.");
-        setCsvData([]);
-      },
-    });
-  };
-  const handleCancelUpload = () => {
-    // Clear the uploaded file data
-    setCsvData([]);
-  };
-  const handleOnUpload = async () => {
-    if (csvData.length === 0) {
-      message.error("No data to upload.");
-      return;
-    }
-    console.log(csvData);
-    // Convert the CSV data into a list of tasks
-    const tasks = csvData.map((row) => {
-      console.log(row.Area);
-      return {
-        area: row.Area,
-        task: row.Task,
-        outcome: row.Outcome,
-        siteId: parseInt(row.SiteId, 10),
-        clientId: row.ClientId,
-      };
-    });
+    const [searchValue, setSearchValue] = useState('');
+    const [searchResult, setSearchResult] = useState<ITask[]>(tasks);
 
-    // Upload the tasks
-    for (const task of tasks) {
-      if (task) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        addTask(task);
-      }
-    }
+    const onSearch = useCallback((value: string) => {
+        setSearchValue(value);
+        if (value === '') {
+            setSearchResult(tasks);
+            return;
+        }
+        const temp: ITask[] = tasks.filter((item: ITask) => {
+            return (
+                item.area.toLowerCase().includes(value.toLowerCase()) ||
+                item.task.toLowerCase().includes(value.toLowerCase()) ||
+                item?.client?.name.toLowerCase().includes(value.toLowerCase()) ||
+                item?.site?.siteName.toLowerCase().includes(value.toLowerCase())    
+            );
+        });
+        setSearchResult(temp);
+    }, [tasks]);
 
-    // Clear the uploaded file data
-    setCsvData([]);
-  };
+    useEffect(() => {
+        onSearch(searchValue);
+    }, [onSearch, searchValue]);
 
-  return (
-    <>
-      <Modal
-        title="Upload CSV File"
-        centered
-        open={open}
-        onOk={() => {
-          handleOnUpload();
-          return openPopup(false);
-        }}
-        onCancel={() => {
-          handleCancelUpload();
-          return openPopup(false);
-        }}
-        okText="Upload"
-      >
-        <p>
-          Use the given template to upload a CSV file containing your data. Once
-          uploaded, you can process and analyze the data using our tools.
-        </p>
-        <br></br>
-        <Upload.Dragger {...uploadProps}>
-          <p className="ant-upload-drag-icon">
-            <InboxOutlined />
-          </p>
-          <p className="ant-upload-text">
-            Click or drag file to this area to upload
-          </p>
-        </Upload.Dragger>
-      </Modal>
-    </>
-  );
+
+
+    return (
+        <>
+            <ImportTaskPopUp open={modalOpen} openPopup={setModalOpen} />
+            <Layout className='report-card'>
+                <div className='header-row'>
+                    <div className=" header-col">
+                        <div className="breadcrumb">
+                            <Title level={2}>Default Task List</Title>
+                            <Breadcrumb>
+                                <Breadcrumb.Item onClick={onBreadClick}>Dashboard</Breadcrumb.Item>
+                                <Breadcrumb.Item className='bread-active'>Default Task List</Breadcrumb.Item>
+                            </Breadcrumb>
+                        </div>
+                        <div className='btn-con btn-show-md'>
+                            <Button className='view-btn' onClick={handleAddTask}><PlusCircleOutlined size={24} />Add Task</Button>
+                        </div>
+                    </div>
+                    <div className="header-col">
+                        <Search
+                            className="search-bar"
+                            placeholder="Search by area or task or client or sitename"
+                            onSearch={onSearch}
+                            enterButton
+                            value={searchValue}
+                            onChange={(e) => { return setSearchValue(e.target.value); }}
+                        />
+                        <div className='btn-con btn-show-lg'>
+                            <Button className='view-btn' onClick={handleAddTask}><PlusCircleOutlined size={24} />Add Task</Button>
+                        </div>
+                    </div>
+                </div>
+                <Row>
+                    <TaskTable data={searchResult} onTaskEditClick={onTaskEditClick} />
+                </Row>
+                <div className='header-row'>
+                    <div className="header-col" style={{
+                        'display': 'flex',
+                        'alignItems': 'center',
+                        'gap': '2rem',
+                        'justifyContent': 'flex-end',
+                    }}>
+                        <h4>Download the csv template for task list <a href='./task_list_template.csv' download>from here</a></h4>
+                        <Button className='view-btn' onClick={() => { return setModalOpen(true); }}>
+                            <CloudUploadOutlined size={24} />
+                            Import
+                        </Button>
+                    </div>
+                </div>
+
+                <Footer />
+
+            </Layout>
+        </>
+    );
 };
 
-export default ImportTaskPopUp;
+export default Task;
