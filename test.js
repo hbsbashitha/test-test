@@ -4,8 +4,9 @@ function generateRandomNumber(min, max) {
   }
   
   // Example usage
-  var min = 1;
+
+  var test = 2;
   var max = 10;
-  var randomNumber = generateRandomNumber(min, max);
+  var randomNumber = generateRandomNumber(test, max);
   console.log("Random number between " + min + " and " + max + ": " + randomNumber);
   
